@@ -1,7 +1,7 @@
 import UIKit
 import CoreData
 
-// Estructura auxiliar para poder guardar los precios en memoria (Tuples no se pueden guardar directo)
+
 struct PriceBackup: Codable {
     let symbol: String
     let price: Double
@@ -17,37 +17,36 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
     // MARK: - Variables
     var accounts: [Account] = []
     
-    // Diccionario de precios
     var preciosEnVivo: [String: (price: Double, change: Double)] = [:]
     
     let refreshControl = UIRefreshControl()
 
-    // MARK: - Lifecycle
+    // MARK: - APP
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // Configuración básica
+        //Confi basica
         collectionView.dataSource = self
         collectionView.delegate = self
         collectionView.contentInset = UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
         
-        // Pull to Refresh
+        //jalar para recargar
         refreshControl.tintColor = .white
         refreshControl.addTarget(self, action: #selector(refreshData), for: .valueChanged)
         collectionView.refreshControl = refreshControl
         
-        // Cargar datos
+        //datos falsos si app esta vacia
         CoreDataManager.shared.createMockDataIfNeeded()
         NotificationCenter.default.addObserver(self, selector: #selector(fetchData), name: NSNotification.Name("DidSaveNewAccount"), object: nil)
         
-        // 1. Cargar cuentas de base de datos
+        //1-cargar cuentas locales
         fetchData()
         
-        // 2. 🔥 CARGAR MEMORIA (Esto es lo nuevo: Muestra datos viejos mientras carga los nuevos)
+        // 2-mostrar precios viejos para que no salga 0.0 (DEMO)
         cargarPreciosDeMemoria()
         
-        // 3. Buscar datos frescos en internet
-        print("⏳ Solicitando precios nuevos...")
+        // 3-Buscar los precios y que se actualice
+        print("solicitando precios nuevos")
         cargarDatosDeInternet()
     }
     
@@ -59,20 +58,21 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
     // MARK: - Data Logic
     
     @objc func fetchData() {
+        //traer las cuentas guardadas
         accounts = CoreDataManager.shared.fetchAccounts()
         collectionView.reloadData()
         actualizarPatrimonioTotal()
     }
-    
+    //llamando al api manager
     func cargarDatosDeInternet() {
         APIManager.shared.fetchCryptoPrices { [weak self] nuevosPrecios in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
-                // Actualizamos
+                //nuevos precios
                 self.preciosEnVivo = nuevosPrecios
                 
-                // 🔥 GUARDAMOS EN MEMORIA (Para la próxima vez)
+                //guardar en memoria
                 self.guardarPreciosEnMemoria()
                 
                 self.actualizarPatrimonioTotal()
@@ -82,25 +82,25 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
     }
     
     @objc func refreshData() {
-        print("🔄 Actualizando datos...")
+        print("actualizando los datos")
         APIManager.shared.fetchCryptoPrices { [weak self] nuevosPrecios in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
                 self.preciosEnVivo = nuevosPrecios
                 
-                // 🔥 GUARDAMOS EN MEMORIA
+                
                 self.guardarPreciosEnMemoria()
                 
                 self.actualizarPatrimonioTotal()
                 self.collectionView.reloadData()
                 self.refreshControl.endRefreshing()
-                print("✅ Datos actualizados y guardados")
+                print("datos actualizados")
             }
         }
     }
     
-    // MARK: - 🔥 SISTEMA DE MEMORIA (PERSISTENCIA)
+    // MARK: - sistema de memoria / persistencia de datos
     
     func guardarPreciosEnMemoria() {
         // Convertimos el diccionario complejo a una lista simple para guardar
@@ -110,10 +110,10 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
             backupList.append(item)
         }
         
-        // Guardamos en el "disco duro" del usuario (UserDefaults)
+        //guardamos en  (UserDefaults)
         if let encoded = try? JSONEncoder().encode(backupList) {
             UserDefaults.standard.set(encoded, forKey: "savedPrices")
-            // print("💾 Precios guardados en memoria")
+            // print("Precios guardados en memoria")
         }
     }
     
@@ -127,7 +127,7 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
                 preciosEnVivo[item.symbol] = (item.price, item.change)
             }
             
-            print("💾 Memoria recuperada: Usando precios anteriores mientras cargan los nuevos.")
+            print("usando precios anteriores mientras cargan los nuevos")
             actualizarPatrimonioTotal()
             collectionView.reloadData()
         }
@@ -135,7 +135,7 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
     
     // MARK: - Calculadora y UI
     
-    // 🧠 EL CEREBRO MATEMÁTICO (Versión Dólar Real)
+    //calculo de dolar
         func actualizarPatrimonioTotal() {
             var totalSoles: Double = 0.0
             
@@ -146,12 +146,11 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
                 if moneda == "PEN" {
                     totalSoles += saldo
                 } else {
-                    // 🔥 LÓGICA UNIFICADA
-                    // Ahora el USD entra aquí también porque lo agregamos al diccionario en APIManager
+                    //si es otra moneda
                     if let datosMoneda = preciosEnVivo[moneda] {
                         totalSoles += (saldo * datosMoneda.price)
                     } else {
-                        // Solo si falla internet, usamos un precio backup para el dólar
+                        // backup
                         if moneda == "USD" {
                             totalSoles += (saldo * 3.75)
                         }
@@ -193,7 +192,7 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
         performSegue(withIdentifier: "goToDetail", sender: selectedAccount)
     }
     
-    // MARK: - Menú Contextual (Borrar / Renombrar)
+    // MARK: - Menu Contextual (Borrar / Renombrar)
     
     func collectionView(_ collectionView: UICollectionView, contextMenuConfigurationForItemAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
         return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { suggestedActions in

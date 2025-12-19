@@ -6,7 +6,7 @@ class AccountDetailViewController: UIViewController {
     // MARK: - Variables y Datos
     var account: Account?
     
-    // Variables para datos en vivo (recibidos del Dashboard)
+    //variables en vivo de precios
     var livePrice: Double?
     var liveChange: Double?
 
@@ -15,10 +15,10 @@ class AccountDetailViewController: UIViewController {
     @IBOutlet weak var balanceLabel: UILabel!
     @IBOutlet weak var currencyLabel: UILabel!
     
-    // 🔥 NUEVO: El logo grande
+    //logo en wallet
     @IBOutlet weak var iconImageView: UIImageView!
     
-    // Botones (opcionales si los tienes conectados)
+    //DEMO
     @IBOutlet weak var incomeButton: UIButton!
     @IBOutlet weak var expenseButton: UIButton!
 
@@ -33,24 +33,23 @@ class AccountDetailViewController: UIViewController {
         
         nameLabel.text = account.name
         
-        // 1. Configurar el Logo Grande
+        //logo grande config
         setupIcon(for: account)
         
-        // 2. Lógica de Visualización de Precios
+        // ver los precios
         if account.currency == "BTC" || account.currency == "ETH" || account.currency == "SOL" {
-            // SI ES CRYPTO:
+            // crypto
             if let precio = livePrice, precio > 0 {
-                // Calculamos valor real
+                // valor real
                 let valorEnSoles = account.balance * precio
                 balanceLabel.text = String(format: "S/ %.2f", valorEnSoles)
                 
-                // Mostramos el saldo original pequeño en la etiqueta de moneda
-                // Ej: "0.05 BTC"
+                // saldo real en target
+                
                 currencyLabel.text = String(format: "%.5f %@", account.balance, account.currency ?? "")
                 
-                // Si tienes un label para el cambio (verde/rojo), aquí lo pondrías
             } else {
-                // Si no hay precio, mostramos saldo normal
+                
                 balanceLabel.text = String(format: "%.5f", account.balance)
                 currencyLabel.text = account.currency
             }
@@ -60,23 +59,23 @@ class AccountDetailViewController: UIViewController {
             currencyLabel.text = account.currency
         }
         
-        // Estilo visual de fondo
+        //estilo del fondo
         view.backgroundColor = UIColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1.0) // Fondo casi negro
     }
     
-    // 🔥 FUNCIÓN PARA CARGAR EL LOGO (Igual que en la celda)
+    // func para el logo
     func setupIcon(for account: Account) {
-        // Hacemos la imagen redonda
+        // rounded
         if let iconView = iconImageView {
             iconView.layer.cornerRadius = iconView.frame.height / 2
             iconView.clipsToBounds = true
             iconView.contentMode = .scaleAspectFill
             
-            // A. Por Moneda
+            //a.moneda
             if let moneda = account.currency, let image = UIImage(named: moneda) {
                 iconView.image = image
             }
-            // B. Por Nombre de Banco
+            //b.name bank
             else if let nombre = account.name {
                 if nombre.contains("BCP") {
                     iconView.image = UIImage(named: "BCP")
@@ -140,16 +139,16 @@ class AccountDetailViewController: UIViewController {
         
         do {
             try account.managedObjectContext?.save()
-            print("✅ Nuevo saldo guardado: \(account.balance)")
+            print("Nuevo saldo guardado: \(account.balance)")
             
-            // Actualizamos la UI inmediatamente
+            //actualizar la ui
             setupUI()
             
-            // Avisamos al Dashboard
+            //dashboard
             NotificationCenter.default.post(name: NSNotification.Name("DidSaveNewAccount"), object: nil)
             
         } catch {
-            print("❌ Error guardando: \(error)")
+            print("Error guardando: \(error)")
         }
     }
 }

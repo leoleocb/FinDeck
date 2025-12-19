@@ -11,14 +11,14 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
     @IBOutlet weak var saveButton: UIButton!
     @IBOutlet weak var titleLabel: UILabel!
     
-    // MARK: - Datos del Selector
+    // MARK: - Variables y Datos
     let fiatCurrencies = ["PEN", "USD", "EUR"]
-    let cryptoCurrencies = ["BTC", "ETH", "SOL", "USDT", "DOGE"]
+    let cryptoCurrencies = ["BTC", "ETH", "SOL", "USDT"]
     
     var currentOptions: [String] = []
     var currencyPicker = UIPickerView()
 
-    // MARK: - Lifecycle
+    // MARK: - App
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
@@ -27,10 +27,10 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
     }
     
     func setupUI() {
-        // Fondo General: Oscuro
+        // fondo general
         view.backgroundColor = UIColor(named: "BackgroundMain") ?? UIColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1.0)
         
-        // Estilo de los campos (Aquí arreglamos el color)
+        // Estilos de campo
         styleTextField(nameTextField)
         styleTextField(balanceTextField)
         styleTextField(currencyTextField)
@@ -38,28 +38,28 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
         titleLabel?.textColor = .white
         saveButton.layer.cornerRadius = 10
         
-        // Configurar Segmented Control
+        //selector de tipo
         typeSegmentedControl.addTarget(self, action: #selector(segmentChanged), for: .valueChanged)
-        // Forzar texto blanco en el selector de tipo
+        
         let titleTextAttributes = [NSAttributedString.Key.foregroundColor: UIColor.white]
         typeSegmentedControl.setTitleTextAttributes(titleTextAttributes, for: .normal)
         typeSegmentedControl.setTitleTextAttributes(titleTextAttributes, for: .selected)
     }
     
-    // MARK: - Estilo de Campos (CORREGIDO 🎨)
+    // MARK: - Estilo de Campos
     func styleTextField(_ textField: UITextField) {
-        // 1. Forzamos un color OSCURO de fondo para que la letra blanca se vea
+        //color orsucro
         textField.backgroundColor = UIColor(named: "CardSurface") ?? UIColor.darkGray
         
-        // 2. Texto BLANCO
+        //texto blanco
         textField.textColor = .white
         textField.layer.cornerRadius = 8
         
-        // 3. Espacio a la izquierda
+        // espacio para la izquierda
         textField.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 50))
         textField.leftViewMode = .always
         
-        // 4. Placeholder (texto de ayuda) en gris claro
+        //placeholder
         if let placeholder = textField.placeholder {
             textField.attributedPlaceholder = NSAttributedString(
                 string: placeholder,
@@ -68,12 +68,12 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
         }
     }
     
-    // MARK: - Lógica del Picker (Ruedita)
+    // MARK: - Picker
     
     func setupCurrencyPicker() {
         currencyPicker.delegate = self
         currencyPicker.dataSource = self
-        // Fondo del picker también oscuro
+        // fondo picker osucro
         currencyPicker.backgroundColor = UIColor(named: "CardSurface") ?? UIColor.darkGray
         
         currencyTextField.inputView = currencyPicker
@@ -115,7 +115,7 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
     func numberOfComponents(in pickerView: UIPickerView) -> Int { 1 }
     func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int { currentOptions.count }
     
-    // Título con Emojis
+ 
     func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
         let code = currentOptions[row]
         switch code {
@@ -128,7 +128,7 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
         }
     }
     
-    // Color de texto blanco para la ruedita
+    //color blanco para la rueda
     func pickerView(_ pickerView: UIPickerView, attributedTitleForRow row: Int, forComponent component: Int) -> NSAttributedString? {
         let title = self.pickerView(pickerView, titleForRow: row, forComponent: component) ?? ""
         return NSAttributedString(string: title, attributes: [.foregroundColor: UIColor.white])
@@ -170,7 +170,7 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
             NotificationCenter.default.post(name: NSNotification.Name("DidSaveNewAccount"), object: nil)
             dismiss(animated: true)
         } catch {
-            print("❌ Error: \(error)")
+            print("Error: \(error)")
         }
     }
 }

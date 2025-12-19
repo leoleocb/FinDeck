@@ -12,44 +12,44 @@ class CardCellCollectionViewCell: UICollectionViewCell {
     // Configuración Principal
     func configure(with account: Account, livePrice: Double? = nil, change: Double? = nil) {
             
-        // 1. Datos Básicos
+        //datos
         nameLabel.text = account.name
         currencyLabel.text = account.currency
         
-        // 2. Formato de Saldo
+        //formato del saldo crypto y moneda
         if account.type == "Crypto" {
             balanceLabel.text = String(format: "%.5f", account.balance)
         } else {
             balanceLabel.text = String(format: "%.2f", account.balance)
         }
         
-        // 3. Icono (Aquí está el cambio visual)
+        //imagen segun wallet
         setupIcon(for: account)
         
-        // 4. Apariencia General (Colores y Datos de Mercado)
+        // apariencia del card
         setupAppearance(account: account, livePrice: livePrice, change: change)
     }
     
-    // MARK: - Lógica de Iconos (Redondo vs Cuadrado)
+    // MARK: - Iconos
     
     func setupIcon(for account: Account) {
-        // Limpieza inicial
+        
         iconImageView.clipsToBounds = true
         iconImageView.backgroundColor = .clear
         
-        // Prioridad 1: Por Moneda (BTC, ETH, USD, SOL)
+        //por moneda
         if let moneda = account.currency, let image = UIImage(named: moneda) {
             iconImageView.image = image
             
-            // Si es una moneda FIAT (Dólar, Soles), la hacemos cuadrada
+            // cuadrados
             if ["USD", "PEN", "EUR"].contains(moneda) {
                  hacerCuadrado()
             } else {
-                 // Si es Cripto (BTC, ETH...), la hacemos redonda
+                 // redondos
                  hacerRedondo()
             }
         }
-        // Prioridad 2: Por Nombre de Banco (BCP, Interbank)
+        // b. por nombre de bancos
         else if let nombre = account.name {
             if nombre.contains("BCP") {
                 iconImageView.image = UIImage(named: "BCP")
@@ -69,17 +69,17 @@ class CardCellCollectionViewCell: UICollectionViewCell {
         }
     }
     
-    // Funciones auxiliares de estilo
+    //funcs auxiliares
     func hacerRedondo() {
-        // Círculo perfecto y relleno total
+        // circle and fill
         iconImageView.layer.cornerRadius = iconImageView.frame.height / 2
         iconImageView.contentMode = .scaleAspectFill
     }
     
     func hacerCuadrado() {
-        // Cuadrado con bordes suaves y ajuste para ver todo el logo
-        iconImageView.layer.cornerRadius = 8 // Un poquito redondeado queda más elegante que 0
-        iconImageView.contentMode = .scaleAspectFit // CLAVE: Para que no se corte
+        //cuadrado con bodes
+        iconImageView.layer.cornerRadius = 8
+        iconImageView.contentMode = .scaleAspectFit
     }
     
     // MARK: - Apariencia General
@@ -89,7 +89,7 @@ class CardCellCollectionViewCell: UICollectionViewCell {
         let showMarketData = (account.type == "Crypto" || account.currency == "USD")
         
         if showMarketData {
-            // Fondo oscuro para resaltar los datos en vivo
+            //fondo oscuro
             backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.12, alpha: 1.0)
             marketDataLabel.isHidden = false
             
@@ -104,7 +104,7 @@ class CardCellCollectionViewCell: UICollectionViewCell {
             }
             
         } else {
-            // Estilos para Bancos Normales (Soles)
+            //para bancos(soles)
             if let name = account.name, name.contains("BCP") {
                 backgroundColor = UIColor(red: 0.0, green: 0.17, blue: 0.55, alpha: 1.0)
             } else if let name = account.name, name.contains("Interbank") {

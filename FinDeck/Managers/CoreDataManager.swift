@@ -3,13 +3,13 @@ import CoreData
 
 class CoreDataManager {
     
-    // El "Jefe" compartido (Singleton)
+    // singleton
     static let shared = CoreDataManager()
     
-    // Acceso al contexto (Público para que el Dashboard pueda borrar)
+    
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
-    // Función 1: Guardar cambios
+    // GUARDAR
     func save() {
         do {
             try context.save()
@@ -18,13 +18,11 @@ class CoreDataManager {
         }
     }
     
-    // Función 2: Leer todas las cuentas
+    // LEER DATOS
     func fetchAccounts() -> [Account] {
         let request: NSFetchRequest<Account> = Account.fetchRequest()
         
         do {
-            // Ordenamos por fecha de creación si existe, sino por nombre
-            // request.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
             return try context.fetch(request)
         } catch {
             print("Error leyendo cuentas: \(error)")
@@ -32,13 +30,13 @@ class CoreDataManager {
         }
     }
     
-    // Función 3: Crear datos falsos (Seed)
+    // datos prueba: DEMO
     func createMockDataIfNeeded() {
         let accounts = fetchAccounts()
         
         if !accounts.isEmpty { return }
         
-        print("Creando datos de prueba...")
+        print("datos de prueba")
         
         let acc1 = Account(context: context)
         acc1.name = "Cuenta BCP"
