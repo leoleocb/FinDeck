@@ -1,9 +1,9 @@
 import UIKit
-import CoreData // 1. Importante para guardar
+import CoreData
 
 class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPickerViewDataSource {
 
-    // OUTLETS
+    // MARK: - Outlets
     @IBOutlet weak var nameTextField: UITextField!
     @IBOutlet weak var balanceTextField: UITextField!
     @IBOutlet weak var typeSegmentedControl: UISegmentedControl!
@@ -11,47 +11,99 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
     @IBOutlet weak var saveButton: UIButton!
     @IBOutlet weak var titleLabel: UILabel!
     
-    // 2. LISTA DE MONEDAS (Agregué DOGE y SOL aquí)
-    let currencies = ["PEN", "USD", "EUR", "BTC", "ETH", "USDT", "DOGE", "SOL"]
+    // MARK: - Datos del Selector
+    let fiatCurrencies = ["PEN", "USD", "EUR"]
+    let cryptoCurrencies = ["BTC", "ETH", "SOL", "USDT", "DOGE"]
     
+    var currentOptions: [String] = []
     var currencyPicker = UIPickerView()
 
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         setupCurrencyPicker()
+        updatePickerOptions()
     }
     
     func setupUI() {
-        view.backgroundColor = UIColor(named: "BackgroundMain")
+        // Fondo General: Oscuro
+        view.backgroundColor = UIColor(named: "BackgroundMain") ?? UIColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1.0)
         
+        // Estilo de los campos (Aquí arreglamos el color)
         styleTextField(nameTextField)
         styleTextField(balanceTextField)
         styleTextField(currencyTextField)
         
         titleLabel?.textColor = .white
         saveButton.layer.cornerRadius = 10
+        
+        // Configurar Segmented Control
+        typeSegmentedControl.addTarget(self, action: #selector(segmentChanged), for: .valueChanged)
+        // Forzar texto blanco en el selector de tipo
+        let titleTextAttributes = [NSAttributedString.Key.foregroundColor: UIColor.white]
+        typeSegmentedControl.setTitleTextAttributes(titleTextAttributes, for: .normal)
+        typeSegmentedControl.setTitleTextAttributes(titleTextAttributes, for: .selected)
     }
     
-    // MARK: - Configuración del Picker (Ruedita)
+    // MARK: - Estilo de Campos (CORREGIDO 🎨)
+    func styleTextField(_ textField: UITextField) {
+        // 1. Forzamos un color OSCURO de fondo para que la letra blanca se vea
+        textField.backgroundColor = UIColor(named: "CardSurface") ?? UIColor.darkGray
+        
+        // 2. Texto BLANCO
+        textField.textColor = .white
+        textField.layer.cornerRadius = 8
+        
+        // 3. Espacio a la izquierda
+        textField.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 50))
+        textField.leftViewMode = .always
+        
+        // 4. Placeholder (texto de ayuda) en gris claro
+        if let placeholder = textField.placeholder {
+            textField.attributedPlaceholder = NSAttributedString(
+                string: placeholder,
+                attributes: [.foregroundColor: UIColor.lightGray]
+            )
+        }
+    }
+    
+    // MARK: - Lógica del Picker (Ruedita)
+    
     func setupCurrencyPicker() {
         currencyPicker.delegate = self
         currencyPicker.dataSource = self
-        currencyPicker.backgroundColor = UIColor(named: "CardSurface")
+        // Fondo del picker también oscuro
+        currencyPicker.backgroundColor = UIColor(named: "CardSurface") ?? UIColor.darkGray
         
         currencyTextField.inputView = currencyPicker
         
-        // Barra de herramientas con botón "Listo"
+        // Barra "Listo"
         let toolbar = UIToolbar()
         toolbar.sizeToFit()
-        let doneButton = UIBarButtonItem(title: "Listo", style: .done, target: self, action: #selector(dismissKeyboard))
-        toolbar.setItems([UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil), doneButton], animated: false)
-        currencyTextField.inputAccessoryView = toolbar
+        toolbar.barStyle = .default
+        toolbar.isTranslucent = true
+        toolbar.tintColor = .systemBlue
         
-        // Seleccionar la primera por defecto si está vacío
-        if currencyTextField.text?.isEmpty ?? true {
-            currencyTextField.text = currencies[0]
+        let doneButton = UIBarButtonItem(title: "Listo", style: .done, target: self, action: #selector(dismissKeyboard))
+        let space = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        toolbar.setItems([space, doneButton], animated: false)
+        currencyTextField.inputAccessoryView = toolbar
+    }
+    
+    @objc func segmentChanged() {
+        updatePickerOptions()
+        currencyTextField.text = currentOptions.first
+        currencyPicker.selectRow(0, inComponent: 0, animated: true)
+    }
+    
+    func updatePickerOptions() {
+        if typeSegmentedControl.selectedSegmentIndex == 1 {
+            currentOptions = cryptoCurrencies // Cripto
+        } else {
+            currentOptions = fiatCurrencies // Banco
         }
+        currencyPicker.reloadAllComponents()
     }
     
     @objc func dismissKeyboard() {
@@ -59,35 +111,49 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
     }
     
     // MARK: - Picker Delegate
+    
     func numberOfComponents(in pickerView: UIPickerView) -> Int { 1 }
-    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int { currencies.count }
-    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? { currencies[row] }
-    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
-        currencyTextField.text = currencies[row]
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int { currentOptions.count }
+    
+    // Título con Emojis
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+        let code = currentOptions[row]
+        switch code {
+        case "PEN": return "🇵🇪 Soles (PEN)"
+        case "USD": return "🇺🇸 Dólares (USD)"
+        case "BTC": return "₿ Bitcoin (BTC)"
+        case "ETH": return "Ξ Ethereum (ETH)"
+        case "SOL": return "◎ Solana (SOL)"
+        default: return code
+        }
     }
     
-    // MARK: - ACCIÓN DEL BOTÓN (AHORA SÍ GUARDA)
+    // Color de texto blanco para la ruedita
+    func pickerView(_ pickerView: UIPickerView, attributedTitleForRow row: Int, forComponent component: Int) -> NSAttributedString? {
+        let title = self.pickerView(pickerView, titleForRow: row, forComponent: component) ?? ""
+        return NSAttributedString(string: title, attributes: [.foregroundColor: UIColor.white])
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+        currencyTextField.text = currentOptions[row]
+    }
+    
+    // MARK: - Guardar
+    
     @IBAction func saveButtonTapped(_ sender: UIButton) {
-        
-        // 1. Validaciones
         guard let name = nameTextField.text, !name.isEmpty else { return }
         guard let balanceText = balanceTextField.text, let balance = Double(balanceText) else { return }
         let currency = currencyTextField.text ?? "PEN"
         
-        // 2. Definir Tipo
         let typeIndex = typeSegmentedControl.selectedSegmentIndex
         let type: String
-        switch typeIndex {
-        case 0: type = "Banco"
-        case 1: type = "Cripto"
-        default: type = "Efectivo"
-        }
+        if typeIndex == 1 { type = "Crypto" }
+        else if typeIndex == 2 { type = "Cash" }
+        else { type = "Bank" }
         
-        // 3. ¡GUARDAR!
         saveAccountToCoreData(name: name, balance: balance, type: type, currency: currency)
     }
     
-    // MARK: - Lógica de CoreData
     func saveAccountToCoreData(name: String, balance: Double, type: String, currency: String) {
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
         let context = appDelegate.persistentContainer.viewContext
@@ -97,30 +163,14 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
         newAccount.balance = balance
         newAccount.type = type
         newAccount.currency = currency
-        newAccount.creationDate = Date() // Importante para ordenar
+        newAccount.creationDate = Date()
         
         do {
             try context.save()
-            print("✅ Cuenta guardada: \(name)")
-            
-            // Avisar al Dashboard que recargue
             NotificationCenter.default.post(name: NSNotification.Name("DidSaveNewAccount"), object: nil)
-            
-            // Cerrar pantalla
             dismiss(animated: true)
         } catch {
-            print("❌ Error guardando: \(error)")
-        }
-    }
-    
-    func styleTextField(_ textField: UITextField) {
-        textField.backgroundColor = UIColor(named: "CardSurface")
-        textField.layer.cornerRadius = 8
-        textField.textColor = .white
-        textField.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 50))
-        textField.leftViewMode = .always
-        if let placeholder = textField.placeholder {
-            textField.attributedPlaceholder = NSAttributedString(string: placeholder, attributes: [.foregroundColor: UIColor.lightGray])
+            print("❌ Error: \(error)")
         }
     }
 }
