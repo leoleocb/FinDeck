@@ -27,18 +27,20 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
     }
     
     func setupUI() {
-        // fondo general
+        // Fondo General
         view.backgroundColor = UIColor(named: "BackgroundMain") ?? UIColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1.0)
         
-        // Estilos de campo
+        // Estilos de campo (Función simplificada abajo)
         styleTextField(nameTextField)
         styleTextField(balanceTextField)
         styleTextField(currencyTextField)
         
         titleLabel?.textColor = .white
-        saveButton.layer.cornerRadius = 10
         
-        //selector de tipo
+        // 🔥 USANDO EXTENSIÓN: Botón Guardar
+        saveButton.redondear(radio: 10)
+        
+        // Selector de tipo
         typeSegmentedControl.addTarget(self, action: #selector(segmentChanged), for: .valueChanged)
         
         let titleTextAttributes = [NSAttributedString.Key.foregroundColor: UIColor.white]
@@ -48,18 +50,18 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
     
     // MARK: - Estilo de Campos
     func styleTextField(_ textField: UITextField) {
-        //color orsucro
+        // Colores base
         textField.backgroundColor = UIColor(named: "CardSurface") ?? UIColor.darkGray
-        
-        //texto blanco
         textField.textColor = .white
-        textField.layer.cornerRadius = 8
         
-        // espacio para la izquierda
+        // 🔥 USANDO EXTENSIÓN: Reemplaza layer.cornerRadius
+        textField.redondear(radio: 8)
+        
+        // Espacio para la izquierda
         textField.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 50))
         textField.leftViewMode = .always
         
-        //placeholder
+        // Placeholder
         if let placeholder = textField.placeholder {
             textField.attributedPlaceholder = NSAttributedString(
                 string: placeholder,
@@ -73,12 +75,10 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
     func setupCurrencyPicker() {
         currencyPicker.delegate = self
         currencyPicker.dataSource = self
-        // fondo picker osucro
         currencyPicker.backgroundColor = UIColor(named: "CardSurface") ?? UIColor.darkGray
         
         currencyTextField.inputView = currencyPicker
         
-        // Barra "Listo"
         let toolbar = UIToolbar()
         toolbar.sizeToFit()
         toolbar.barStyle = .default
@@ -115,7 +115,7 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
     func numberOfComponents(in pickerView: UIPickerView) -> Int { 1 }
     func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int { currentOptions.count }
     
- 
+
     func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
         let code = currentOptions[row]
         switch code {
@@ -128,7 +128,6 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
         }
     }
     
-    //color blanco para la rueda
     func pickerView(_ pickerView: UIPickerView, attributedTitleForRow row: Int, forComponent component: Int) -> NSAttributedString? {
         let title = self.pickerView(pickerView, titleForRow: row, forComponent: component) ?? ""
         return NSAttributedString(string: title, attributes: [.foregroundColor: UIColor.white])

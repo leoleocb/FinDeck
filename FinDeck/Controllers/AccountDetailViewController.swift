@@ -6,7 +6,7 @@ class AccountDetailViewController: UIViewController {
     // MARK: - Variables y Datos
     var account: Account?
     
-    //variables en vivo de precios
+    // Variables en vivo de precios
     var livePrice: Double?
     var liveChange: Double?
 
@@ -15,10 +15,10 @@ class AccountDetailViewController: UIViewController {
     @IBOutlet weak var balanceLabel: UILabel!
     @IBOutlet weak var currencyLabel: UILabel!
     
-    //logo en wallet
+    // Logo en wallet
     @IBOutlet weak var iconImageView: UIImageView!
     
-    //DEMO
+    // Botones de Acción
     @IBOutlet weak var incomeButton: UIButton!
     @IBOutlet weak var expenseButton: UIButton!
 
@@ -33,61 +33,62 @@ class AccountDetailViewController: UIViewController {
         
         nameLabel.text = account.name
         
-        //logo grande config
+        // 1. Configurar Logo (Ahora usamos el ThemeManager, mucho más limpio)
         setupIcon(for: account)
         
-        // ver los precios
+        // 2. Estilizar Botones
+        // 🔥 USANDO EXTENSIÓN: Código limpio
+        incomeButton?.redondear(radio: 12)
+        expenseButton?.redondear(radio: 12)
+        
+        // 3. Ver los precios (Lógica de Negocio)
         if account.currency == "BTC" || account.currency == "ETH" || account.currency == "SOL" {
-            // crypto
+            // Crypto
             if let precio = livePrice, precio > 0 {
-                // valor real
+                // Valor real
                 let valorEnSoles = account.balance * precio
                 balanceLabel.text = String(format: "S/ %.2f", valorEnSoles)
                 
-                // saldo real en target
-                
+                // Saldo original pequeño
                 currencyLabel.text = String(format: "%.5f %@", account.balance, account.currency ?? "")
                 
             } else {
-                
                 balanceLabel.text = String(format: "%.5f", account.balance)
                 currencyLabel.text = account.currency
             }
         } else {
-            // SI ES BANCO O USD:
+            // BANCO O USD:
             balanceLabel.text = String(format: "%.2f", account.balance)
             currencyLabel.text = account.currency
         }
         
-        //estilo del fondo
-        view.backgroundColor = UIColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1.0) // Fondo casi negro
+        // Estilo del fondo (Mantenemos el fondo oscuro general de la app)
+        view.backgroundColor = UIColor(named: "BackgroundMain") ?? UIColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1.0)
     }
     
-    // func para el logo
+    // Func para el logo (REF ACTORIZADA CON THEME MANAGER) 🧠✨
     func setupIcon(for account: Account) {
-        // rounded
-        if let iconView = iconImageView {
-            iconView.layer.cornerRadius = iconView.frame.height / 2
-            iconView.clipsToBounds = true
-            iconView.contentMode = .scaleAspectFill
-            
-            //a.moneda
-            if let moneda = account.currency, let image = UIImage(named: moneda) {
-                iconView.image = image
-            }
-            //b.name bank
-            else if let nombre = account.name {
-                if nombre.contains("BCP") {
-                    iconView.image = UIImage(named: "BCP")
-                } else if nombre.contains("Interbank") {
-                    iconView.image = UIImage(named: "Interbank")
-                } else if nombre.contains("Efectivo") || account.type == "Cash" {
-                    iconView.image = UIImage(named: "Cash")
-                } else {
-                    iconView.image = nil
-                    iconView.backgroundColor = .systemGray
-                }
-            }
+        
+        // 1. Pedimos el estilo al Manager (Él decide qué icono y forma usar)
+        let style = ThemeManager.getStyle(accountName: account.name, currency: account.currency, type: account.type)
+        
+        // 2. Aplicamos la imagen
+        if let icon = style.icon {
+            iconImageView.image = icon
+            iconImageView.backgroundColor = .clear
+        } else {
+            iconImageView.image = nil
+            iconImageView.backgroundColor = .systemGray
+        }
+        
+        // 3. Aplicamos la forma (Redondo o Cuadrado) según lo que diga el Manager
+        if style.shouldBeRound {
+            iconImageView.hacerCirculo()
+            iconImageView.contentMode = .scaleAspectFill
+        } else {
+            // En el detalle se ve mejor un poco más grande el radio
+            iconImageView.redondear(radio: 12)
+            iconImageView.contentMode = .scaleAspectFit
         }
     }
     
@@ -141,10 +142,7 @@ class AccountDetailViewController: UIViewController {
             try account.managedObjectContext?.save()
             print("Nuevo saldo guardado: \(account.balance)")
             
-            //actualizar la ui
             setupUI()
-            
-            //dashboard
             NotificationCenter.default.post(name: NSNotification.Name("DidSaveNewAccount"), object: nil)
             
         } catch {
