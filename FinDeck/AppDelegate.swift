@@ -9,6 +9,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         // 👈 2. Configurar Firebase al iniciar
         FirebaseApp.configure()
+        // PRUEBA TEMPORAL: Guardar algo falso al iniciar
+    //FirebaseManager.shared.saveAccount(name: "Prueba Firebase", balance: 100.0, currency: "USD", type: "Bank") { _ in }
         print("🔥 Firebase configurado exitosamente")
         
         return true

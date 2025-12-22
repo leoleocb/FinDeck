@@ -1,5 +1,5 @@
 import UIKit
-import CoreData
+// Ya no necesitamos import CoreData aquí
 
 class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPickerViewDataSource {
 
@@ -30,14 +30,14 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
         // Fondo General
         view.backgroundColor = UIColor(named: "BackgroundMain") ?? UIColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1.0)
         
-        // Estilos de campo (Función simplificada abajo)
+        // Estilos de campo
         styleTextField(nameTextField)
         styleTextField(balanceTextField)
         styleTextField(currencyTextField)
         
         titleLabel?.textColor = .white
         
-        // 🔥 USANDO EXTENSIÓN: Botón Guardar
+        // 🔥 USANDO EXTENSIÓN
         saveButton.redondear(radio: 10)
         
         // Selector de tipo
@@ -50,18 +50,15 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
     
     // MARK: - Estilo de Campos
     func styleTextField(_ textField: UITextField) {
-        // Colores base
         textField.backgroundColor = UIColor(named: "CardSurface") ?? UIColor.darkGray
         textField.textColor = .white
         
-        // 🔥 USANDO EXTENSIÓN: Reemplaza layer.cornerRadius
+        // 🔥 USANDO EXTENSIÓN
         textField.redondear(radio: 8)
         
-        // Espacio para la izquierda
         textField.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 50))
         textField.leftViewMode = .always
         
-        // Placeholder
         if let placeholder = textField.placeholder {
             textField.attributedPlaceholder = NSAttributedString(
                 string: placeholder,
@@ -70,7 +67,7 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
         }
     }
     
-    // MARK: - Picker
+    // MARK: - Picker Logic
     
     func setupCurrencyPicker() {
         currencyPicker.delegate = self
@@ -137,7 +134,7 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
         currencyTextField.text = currentOptions[row]
     }
     
-    // MARK: - Guardar
+    // MARK: - Guardar en FIREBASE ☁️
     
     @IBAction func saveButtonTapped(_ sender: UIButton) {
         guard let name = nameTextField.text, !name.isEmpty else { return }
@@ -150,26 +147,24 @@ class AddAccountViewController: UIViewController, UIPickerViewDelegate, UIPicker
         else if typeIndex == 2 { type = "Cash" }
         else { type = "Bank" }
         
-        saveAccountToCoreData(name: name, balance: balance, type: type, currency: currency)
-    }
-    
-    func saveAccountToCoreData(name: String, balance: Double, type: String, currency: String) {
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
-        let context = appDelegate.persistentContainer.viewContext
+        // Deshabilitar botón para evitar doble tap
+        sender.isEnabled = false
         
-        let newAccount = Account(context: context)
-        newAccount.name = name
-        newAccount.balance = balance
-        newAccount.type = type
-        newAccount.currency = currency
-        newAccount.creationDate = Date()
-        
-        do {
-            try context.save()
-            NotificationCenter.default.post(name: NSNotification.Name("DidSaveNewAccount"), object: nil)
-            dismiss(animated: true)
-        } catch {
-            print("Error: \(error)")
+        // Llamada al Manager de Firebase
+        FirebaseManager.shared.saveAccount(name: name, balance: balance, currency: currency, type: type) { success in
+            
+            DispatchQueue.main.async {
+                sender.isEnabled = true
+                
+                if success {
+                    // Avisamos al Dashboard para que recargue
+                    NotificationCenter.default.post(name: NSNotification.Name("DidSaveNewAccount"), object: nil)
+                    self.dismiss(animated: true)
+                } else {
+                    print("Error al guardar en la nube")
+                    // Aquí podrías mostrar una alerta de error
+                }
+            }
         }
     }
 }

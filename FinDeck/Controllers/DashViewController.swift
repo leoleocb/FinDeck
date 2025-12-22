@@ -1,5 +1,5 @@
 import UIKit
-import CoreData
+// Quitamos Core Data porque ya no lo usamos para leer
 
 struct PriceBackup: Codable {
     let symbol: String
@@ -14,16 +14,15 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
     @IBOutlet weak var totalBalanceLabel: UILabel!
     
     // MARK: - Variables
-    var accounts: [Account] = []
+    // 👇 CAMBIO: Ahora usamos el Modelo de Firebase
+    var accounts: [AccountModel] = []
     
     // Almacén de Precios en Vivo
     var preciosEnVivo: [String: (price: Double, change: Double)] = [:]
     
     let refreshControl = UIRefreshControl()
     
-    // 🔥 SERVICIO API (Inyección de Dependencia)
-    // Aquí definimos que usaremos el servicio que cumple el contrato CryptoService
-    // Por defecto instanciamos el de CoinGecko, pero es fácil cambiarlo.
+    // 🔥 SERVICIO API
     let cryptoService: CryptoService = CoinGeckoService.shared
 
     // MARK: - APP
@@ -32,66 +31,63 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
         
         setupUI()
         
-        // Datos falsos si app está vacía (Solo primera vez)
-        CoreDataManager.shared.createMockDataIfNeeded()
+        // (Opcional) Datos Mock: Ya no usamos CoreDataManager.shared.createMockData...
+        // Si quieres datos falsos, créalos en la web de Firebase
         
-        // Escuchar cambios (cuando se agrega una cuenta nueva)
+        // Escuchar cambios (cuando se guarda una nueva cuenta)
         NotificationCenter.default.addObserver(self, selector: #selector(fetchData), name: NSNotification.Name("DidSaveNewAccount"), object: nil)
         
-        // 1. Cargar cuentas locales (Core Data)
+        // 1. Cargar cuentas de la NUBE ☁️
         fetchData()
         
-        // 2. Mostrar precios viejos de memoria (para que no salga 0.0 al inicio)
+        // 2. Mostrar precios viejos de memoria
         cargarPreciosDeMemoria()
         
-        // 3. Buscar los precios frescos de Internet
-        print("🌐 Solicitando precios nuevos al servicio...")
+        // 3. Buscar precios
         cargarDatosDeInternet()
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        fetchData()
+        // Opcional: Podrías comentar esto si no quieres gastar lecturas de Firebase cada vez que aparezca la vista
+        // fetchData()
     }
     
     func setupUI() {
-        // Configuración básica CollectionView
         collectionView.dataSource = self
         collectionView.delegate = self
         collectionView.contentInset = UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
         
-        // Jalar para recargar
         refreshControl.tintColor = .white
         refreshControl.addTarget(self, action: #selector(refreshData), for: .valueChanged)
         collectionView.refreshControl = refreshControl
     }
     
-    // MARK: - Data Logic
+    // MARK: - Data Logic (FIREBASE)
     
     @objc func fetchData() {
-        // Traer las cuentas guardadas
-        accounts = CoreDataManager.shared.fetchAccounts()
-        collectionView.reloadData()
-        actualizarPatrimonioTotal()
+        print("☁️ Buscando cuentas en Firebase...")
+        
+        FirebaseManager.shared.fetchAccounts { [weak self] cuentasBajadas in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.accounts = cuentasBajadas
+                self.collectionView.reloadData()
+                self.actualizarPatrimonioTotal()
+                self.refreshControl.endRefreshing()
+            }
+        }
     }
     
-    // 🔥 Llamando al SERVICIO (Ya no directo al Manager)
+    // API Cripto
     func cargarDatosDeInternet() {
-        
         cryptoService.fetchCryptoPrices { [weak self] nuevosPrecios in
             guard let self = self else { return }
             
-            // Como el servicio ya devuelve en Main Queue (lo pusimos en APIManager), podemos usarlo directo,
-            // pero por seguridad mantenemos el DispatchQueue si queremos.
             DispatchQueue.main.async {
-                
-                // Actualizamos datos
                 self.preciosEnVivo = nuevosPrecios
-                
-                // Guardamos en memoria para la próxima vez
                 self.guardarPreciosEnMemoria()
-                
-                // Refrescamos UI
                 self.actualizarPatrimonioTotal()
                 self.collectionView.reloadData()
             }
@@ -99,49 +95,32 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
     }
     
     @objc func refreshData() {
-        print("🔄 Actualizando datos manualmente...")
-        
-        cryptoService.fetchCryptoPrices { [weak self] nuevosPrecios in
-            guard let self = self else { return }
-            
-            DispatchQueue.main.async {
-                self.preciosEnVivo = nuevosPrecios
-                self.guardarPreciosEnMemoria()
-                self.actualizarPatrimonioTotal()
-                self.collectionView.reloadData()
-                self.refreshControl.endRefreshing()
-                print("✅ Datos actualizados")
-            }
-        }
+        print("🔄 Recargando todo...")
+        // Recargamos Cuentas y Precios
+        fetchData()
+        cargarDatosDeInternet()
     }
     
-    // MARK: - Sistema de Memoria / Persistencia de Datos
+    // MARK: - Sistema de Memoria / Persistencia de Precios (Igual)
     
     func guardarPreciosEnMemoria() {
-        // Convertimos el diccionario complejo a una lista simple para guardar
         var backupList: [PriceBackup] = []
         for (symbol, data) in preciosEnVivo {
             let item = PriceBackup(symbol: symbol, price: data.price, change: data.change)
             backupList.append(item)
         }
-        
-        // Guardamos en UserDefaults
         if let encoded = try? JSONEncoder().encode(backupList) {
             UserDefaults.standard.set(encoded, forKey: "savedPrices")
         }
     }
     
     func cargarPreciosDeMemoria() {
-        // Intentamos leer del "disco duro"
         if let savedData = UserDefaults.standard.data(forKey: "savedPrices"),
            let loadedList = try? JSONDecoder().decode([PriceBackup].self, from: savedData) {
             
-            // Reconstruimos el diccionario
             for item in loadedList {
                 preciosEnVivo[item.symbol] = (item.price, item.change)
             }
-            
-            print("💾 Usando precios cacheados mientras cargan los nuevos")
             actualizarPatrimonioTotal()
             collectionView.reloadData()
         }
@@ -154,16 +133,14 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
         
         for account in accounts {
             let saldo = account.balance
-            let moneda = account.currency ?? "PEN"
+            let moneda = account.currency
             
             if moneda == "PEN" {
                 totalSoles += saldo
             } else {
-                // Si es otra moneda (USD, BTC, ETH...)
                 if let datosMoneda = preciosEnVivo[moneda] {
                     totalSoles += (saldo * datosMoneda.price)
                 } else {
-                    // Backup básico si falla internet y no hay caché
                     if moneda == "USD" {
                         totalSoles += (saldo * 3.75)
                     }
@@ -187,7 +164,7 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
         let account = accounts[indexPath.row]
         
         // Pasamos datos en vivo si existen
-        if let moneda = account.currency, let datos = preciosEnVivo[moneda] {
+        if let datos = preciosEnVivo[account.currency] {
             cell.configure(with: account, livePrice: datos.price, change: datos.change)
         } else {
             cell.configure(with: account)
@@ -210,9 +187,14 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
     
     func collectionView(_ collectionView: UICollectionView, contextMenuConfigurationForItemAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
         return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { suggestedActions in
+            
+            // Nota: Para renombrar en Firebase necesitamos una función de Update que no hemos creado aún.
+            // Por ahora deshabilitamos la acción o dejamos un print.
             let editAction = UIAction(title: "Renombrar", image: UIImage(systemName: "pencil")) { action in
-                self.mostrarAlertaRenombrar(en: indexPath)
+                // self.mostrarAlertaRenombrar(en: indexPath) // TODO: Implementar Update en FirebaseManager
+                print("Editar pendiente de implementar en Firebase")
             }
+            
             let deleteAction = UIAction(title: "Borrar", image: UIImage(systemName: "trash"), attributes: .destructive) { action in
                 self.confirmarBorrado(en: indexPath)
             }
@@ -221,51 +203,48 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
     }
     
     func confirmarBorrado(en indexPath: IndexPath) {
-        let cuentaABorrar = accounts[indexPath.row]
-        let alerta = UIAlertController(title: "Eliminar Cuenta", message: "¿Seguro que quieres borrar \(cuentaABorrar.name ?? "esta cuenta")?", preferredStyle: .alert)
+        let cuenta = accounts[indexPath.row]
+        
+        // Validamos que tenga ID (debería tenerlo si vino de Firebase)
+        guard let id = cuenta.id else { return }
+        
+        let alerta = UIAlertController(title: "Eliminar Cuenta", message: "¿Seguro que quieres borrar \(cuenta.name)?", preferredStyle: .alert)
         alerta.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
         alerta.addAction(UIAlertAction(title: "Eliminar", style: .destructive, handler: { _ in
-            let context = CoreDataManager.shared.context
-            context.delete(cuentaABorrar)
-            do {
-                try context.save()
-                self.accounts.remove(at: indexPath.row)
-                self.collectionView.deleteItems(at: [indexPath])
-                self.actualizarPatrimonioTotal()
-            } catch { print("Error borrando: \(error)") }
+            
+            // 🔥 BORRADO EN FIREBASE
+            FirebaseManager.shared.deleteAccount(id: id) { success in
+                DispatchQueue.main.async {
+                    if success {
+                        self.accounts.remove(at: indexPath.row)
+                        self.collectionView.deleteItems(at: [indexPath])
+                        self.actualizarPatrimonioTotal()
+                    } else {
+                        print("Error al borrar de la nube")
+                    }
+                }
+            }
         }))
         present(alerta, animated: true)
     }
     
-    func mostrarAlertaRenombrar(en indexPath: IndexPath) {
-        let cuenta = accounts[indexPath.row]
-        let alerta = UIAlertController(title: "Editar Nombre", message: nil, preferredStyle: .alert)
-        alerta.addTextField { tf in
-            tf.text = cuenta.name
-            tf.placeholder = "Nuevo nombre"
-            tf.autocapitalizationType = .words
-        }
-        let guardar = UIAlertAction(title: "Guardar", style: .default) { _ in
-            if let nuevoNombre = alerta.textFields?.first?.text, !nuevoNombre.isEmpty {
-                cuenta.name = nuevoNombre
-                CoreDataManager.shared.save()
-                self.collectionView.reloadItems(at: [indexPath])
-            }
-        }
-        alerta.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alerta.addAction(guardar)
-        present(alerta, animated: true)
-    }
+    // La función de Renombrar la comentamos por ahora hasta tener el Update en el Manager
+    /*
+    func mostrarAlertaRenombrar(en indexPath: IndexPath) { ... }
+    */
     
     // MARK: - Navigation
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "goToDetail" {
             if let detailVC = segue.destination as? AccountDetailViewController {
-                if let selectedAccount = sender as? Account {
+                
+                // ⚠️ OJO: AccountDetailViewController TAMBIÉN NECESITA ACTUALIZARSE
+                // Debe aceptar 'AccountModel' en lugar de 'Account'.
+                if let selectedAccount = sender as? AccountModel {
                     detailVC.account = selectedAccount
-                    // Pasar el precio en vivo al detalle para que calcule el saldo real allá también
-                    if let moneda = selectedAccount.currency, let datos = preciosEnVivo[moneda] {
+                    
+                    if let datos = preciosEnVivo[selectedAccount.currency] {
                         detailVC.livePrice = datos.price
                         detailVC.liveChange = datos.change
                     }

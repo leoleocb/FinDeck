@@ -1,10 +1,11 @@
 import UIKit
-import CoreData
+// Borramos 'import CoreData' porque ya no lo usamos aquí
 
 class AccountDetailViewController: UIViewController {
 
     // MARK: - Variables y Datos
-    var account: Account?
+    // 👇 CAMBIO: Ahora usamos AccountModel
+    var account: AccountModel?
     
     // Variables en vivo de precios
     var livePrice: Double?
@@ -14,11 +15,7 @@ class AccountDetailViewController: UIViewController {
     @IBOutlet weak var nameLabel: UILabel!
     @IBOutlet weak var balanceLabel: UILabel!
     @IBOutlet weak var currencyLabel: UILabel!
-    
-    // Logo en wallet
     @IBOutlet weak var iconImageView: UIImageView!
-    
-    // Botones de Acción
     @IBOutlet weak var incomeButton: UIButton!
     @IBOutlet weak var expenseButton: UIButton!
 
@@ -33,7 +30,7 @@ class AccountDetailViewController: UIViewController {
         
         nameLabel.text = account.name
         
-        // 1. Configurar Logo usando ENUMS
+        // 1. Configurar Logo (ThemeManager)
         setupIcon(for: account)
         
         // 2. Estilizar Botones
@@ -41,18 +38,18 @@ class AccountDetailViewController: UIViewController {
         expenseButton?.redondear(radio: 12)
         
         // 3. Ver los precios
-        if account.currency == "BTC" || account.currency == "ETH" || account.currency == "SOL" {
+        if ["BTC", "ETH", "SOL"].contains(account.currency) {
             // Crypto
             if let precio = livePrice, precio > 0 {
                 let valorEnSoles = account.balance * precio
                 balanceLabel.text = String(format: "S/ %.2f", valorEnSoles)
-                currencyLabel.text = String(format: "%.5f %@", account.balance, account.currency ?? "")
+                currencyLabel.text = String(format: "%.5f %@", account.balance, account.currency)
             } else {
                 balanceLabel.text = String(format: "%.5f", account.balance)
                 currencyLabel.text = account.currency
             }
         } else {
-            // BANCO O USD:
+            // Banco o USD
             balanceLabel.text = String(format: "%.2f", account.balance)
             currencyLabel.text = account.currency
         }
@@ -61,13 +58,10 @@ class AccountDetailViewController: UIViewController {
         view.backgroundColor = UIColor(named: "BackgroundMain") ?? UIColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1.0)
     }
     
-    // Func para el logo (Actualizada con Enum)
-    func setupIcon(for account: Account) {
-        
-        // 1. Pedimos el TEMA (Enum)
+    // Func para el logo con ThemeManager
+    func setupIcon(for account: AccountModel) {
         let theme = ThemeManager.getTheme(accountName: account.name, currency: account.currency, type: account.type)
         
-        // 2. Usamos las propiedades del Enum
         if let icon = theme.icon {
             iconImageView.image = icon
             iconImageView.backgroundColor = .clear
@@ -76,7 +70,6 @@ class AccountDetailViewController: UIViewController {
             iconImageView.backgroundColor = .systemGray
         }
         
-        // 3. Forma según el Enum
         if theme.shouldBeRound {
             iconImageView.hacerCirculo()
             iconImageView.contentMode = .scaleAspectFill
@@ -113,10 +106,9 @@ class AccountDetailViewController: UIViewController {
         let action = UIAlertAction(title: actionTitle, style: .default) { [weak self] _ in
             guard let amountText = alert.textFields?.first?.text,
                   let amount = Double(amountText),
-                  let self = self,
-                  let account = self.account else { return }
+                  let self = self else { return }
             
-            self.updateBalance(amount: amount, isIncome: isIncome, account: account)
+            self.updateBalance(amount: amount, isIncome: isIncome)
         }
         
         alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
@@ -125,22 +117,29 @@ class AccountDetailViewController: UIViewController {
         present(alert, animated: true)
     }
     
-    func updateBalance(amount: Double, isIncome: Bool, account: Account) {
-        if isIncome {
-            account.balance += amount
-        } else {
-            account.balance -= amount
-        }
+    // 🔥 AQUÍ ESTÁ LA LÓGICA DE FIREBASE PARA EL SALDO
+    func updateBalance(amount: Double, isIncome: Bool) {
+        guard var currentAccount = account, let id = currentAccount.id else { return }
         
-        do {
-            try account.managedObjectContext?.save()
-            print("Nuevo saldo guardado: \(account.balance)")
+        // 1. Calcular nuevo saldo localmente
+        let newBalance = isIncome ? currentAccount.balance + amount : currentAccount.balance - amount
+        
+        // 2. Actualizar en Firebase
+        FirebaseManager.shared.updateBalance(id: id, newBalance: newBalance) { [weak self] success in
+            guard let self = self else { return }
             
-            setupUI()
-            NotificationCenter.default.post(name: NSNotification.Name("DidSaveNewAccount"), object: nil)
-            
-        } catch {
-            print("Error guardando: \(error)")
+            DispatchQueue.main.async {
+                if success {
+                    // 3. Actualizar UI Local
+                    self.account?.balance = newBalance
+                    self.setupUI()
+                    
+                    // Avisar al Dashboard que recargue cuando volvamos
+                    NotificationCenter.default.post(name: NSNotification.Name("DidSaveNewAccount"), object: nil)
+                } else {
+                    print("Error actualizando saldo")
+                }
+            }
         }
     }
 }

@@ -8,7 +8,8 @@ class CardCellCollectionViewCell: UICollectionViewCell {
     @IBOutlet weak var marketDataLabel: UILabel!
     @IBOutlet weak var iconImageView: UIImageView!
     
-    func configure(with account: Account, livePrice: Double? = nil, change: Double? = nil) {
+    // 👇 CAMBIO IMPORTANTE: Ahora recibe AccountModel
+    func configure(with account: AccountModel, livePrice: Double? = nil, change: Double? = nil) {
         
         // 1. Datos de Texto
         nameLabel.text = account.name
@@ -21,18 +22,17 @@ class CardCellCollectionViewCell: UICollectionViewCell {
         }
         
         // 2. 🔥 MAGIA DEL ENUM 🔥
-        // Obtenemos el Tema específico (Ej: .bitcoin, .bcp, .usd)
         let theme = ThemeManager.getTheme(accountName: account.name, currency: account.currency, type: account.type)
         
-        // Aplicar Color (El enum sabe su color)
+        // Aplicar Color
         self.backgroundColor = theme.backgroundColor
         self.redondear(radio: 16)
         
-        // Aplicar Icono (El enum sabe su icono)
+        // Aplicar Icono
         iconImageView.image = theme.icon
         iconImageView.backgroundColor = theme.icon == nil ? .systemGray4 : .clear
         
-        // Aplicar Forma (El enum sabe si debe ser redondo)
+        // Aplicar Forma
         if theme.shouldBeRound {
             iconImageView.hacerCirculo()
             iconImageView.contentMode = .scaleAspectFill
@@ -45,7 +45,8 @@ class CardCellCollectionViewCell: UICollectionViewCell {
         setupMarketData(account: account, livePrice: livePrice, change: change)
     }
     
-    func setupMarketData(account: Account, livePrice: Double?, change: Double?) {
+    // Actualizamos también esta función auxiliar para usar AccountModel
+    func setupMarketData(account: AccountModel, livePrice: Double?, change: Double?) {
         let showMarketData = (account.type == "Crypto" || account.currency == "USD")
         
         if showMarketData {
