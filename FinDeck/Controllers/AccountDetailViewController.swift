@@ -33,25 +33,20 @@ class AccountDetailViewController: UIViewController {
         
         nameLabel.text = account.name
         
-        // 1. Configurar Logo (Ahora usamos el ThemeManager, mucho más limpio)
+        // 1. Configurar Logo usando ENUMS
         setupIcon(for: account)
         
         // 2. Estilizar Botones
-        // 🔥 USANDO EXTENSIÓN: Código limpio
         incomeButton?.redondear(radio: 12)
         expenseButton?.redondear(radio: 12)
         
-        // 3. Ver los precios (Lógica de Negocio)
+        // 3. Ver los precios
         if account.currency == "BTC" || account.currency == "ETH" || account.currency == "SOL" {
             // Crypto
             if let precio = livePrice, precio > 0 {
-                // Valor real
                 let valorEnSoles = account.balance * precio
                 balanceLabel.text = String(format: "S/ %.2f", valorEnSoles)
-                
-                // Saldo original pequeño
                 currencyLabel.text = String(format: "%.5f %@", account.balance, account.currency ?? "")
-                
             } else {
                 balanceLabel.text = String(format: "%.5f", account.balance)
                 currencyLabel.text = account.currency
@@ -62,18 +57,18 @@ class AccountDetailViewController: UIViewController {
             currencyLabel.text = account.currency
         }
         
-        // Estilo del fondo (Mantenemos el fondo oscuro general de la app)
+        // Estilo del fondo
         view.backgroundColor = UIColor(named: "BackgroundMain") ?? UIColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1.0)
     }
     
-    // Func para el logo (REF ACTORIZADA CON THEME MANAGER) 🧠✨
+    // Func para el logo (Actualizada con Enum)
     func setupIcon(for account: Account) {
         
-        // 1. Pedimos el estilo al Manager (Él decide qué icono y forma usar)
-        let style = ThemeManager.getStyle(accountName: account.name, currency: account.currency, type: account.type)
+        // 1. Pedimos el TEMA (Enum)
+        let theme = ThemeManager.getTheme(accountName: account.name, currency: account.currency, type: account.type)
         
-        // 2. Aplicamos la imagen
-        if let icon = style.icon {
+        // 2. Usamos las propiedades del Enum
+        if let icon = theme.icon {
             iconImageView.image = icon
             iconImageView.backgroundColor = .clear
         } else {
@@ -81,12 +76,11 @@ class AccountDetailViewController: UIViewController {
             iconImageView.backgroundColor = .systemGray
         }
         
-        // 3. Aplicamos la forma (Redondo o Cuadrado) según lo que diga el Manager
-        if style.shouldBeRound {
+        // 3. Forma según el Enum
+        if theme.shouldBeRound {
             iconImageView.hacerCirculo()
             iconImageView.contentMode = .scaleAspectFill
         } else {
-            // En el detalle se ve mejor un poco más grande el radio
             iconImageView.redondear(radio: 12)
             iconImageView.contentMode = .scaleAspectFit
         }

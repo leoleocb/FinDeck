@@ -1,7 +1,6 @@
 import UIKit
 import CoreData
 
-
 struct PriceBackup: Codable {
     let symbol: String
     let price: Double
@@ -17,36 +16,36 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
     // MARK: - Variables
     var accounts: [Account] = []
     
+    // Almacén de Precios en Vivo
     var preciosEnVivo: [String: (price: Double, change: Double)] = [:]
     
     let refreshControl = UIRefreshControl()
+    
+    // 🔥 SERVICIO API (Inyección de Dependencia)
+    // Aquí definimos que usaremos el servicio que cumple el contrato CryptoService
+    // Por defecto instanciamos el de CoinGecko, pero es fácil cambiarlo.
+    let cryptoService: CryptoService = CoinGeckoService.shared
 
     // MARK: - APP
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        //Confi basica
-        collectionView.dataSource = self
-        collectionView.delegate = self
-        collectionView.contentInset = UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
+        setupUI()
         
-        //jalar para recargar
-        refreshControl.tintColor = .white
-        refreshControl.addTarget(self, action: #selector(refreshData), for: .valueChanged)
-        collectionView.refreshControl = refreshControl
-        
-        //datos falsos si app esta vacia
+        // Datos falsos si app está vacía (Solo primera vez)
         CoreDataManager.shared.createMockDataIfNeeded()
+        
+        // Escuchar cambios (cuando se agrega una cuenta nueva)
         NotificationCenter.default.addObserver(self, selector: #selector(fetchData), name: NSNotification.Name("DidSaveNewAccount"), object: nil)
         
-        //1-cargar cuentas locales
+        // 1. Cargar cuentas locales (Core Data)
         fetchData()
         
-        // 2-mostrar precios viejos para que no salga 0.0 (DEMO)
+        // 2. Mostrar precios viejos de memoria (para que no salga 0.0 al inicio)
         cargarPreciosDeMemoria()
         
-        // 3-Buscar los precios y que se actualice
-        print("solicitando precios nuevos")
+        // 3. Buscar los precios frescos de Internet
+        print("🌐 Solicitando precios nuevos al servicio...")
         cargarDatosDeInternet()
     }
     
@@ -55,26 +54,44 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
         fetchData()
     }
     
+    func setupUI() {
+        // Configuración básica CollectionView
+        collectionView.dataSource = self
+        collectionView.delegate = self
+        collectionView.contentInset = UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
+        
+        // Jalar para recargar
+        refreshControl.tintColor = .white
+        refreshControl.addTarget(self, action: #selector(refreshData), for: .valueChanged)
+        collectionView.refreshControl = refreshControl
+    }
+    
     // MARK: - Data Logic
     
     @objc func fetchData() {
-        //traer las cuentas guardadas
+        // Traer las cuentas guardadas
         accounts = CoreDataManager.shared.fetchAccounts()
         collectionView.reloadData()
         actualizarPatrimonioTotal()
     }
-    //llamando al api manager
+    
+    // 🔥 Llamando al SERVICIO (Ya no directo al Manager)
     func cargarDatosDeInternet() {
-        APIManager.shared.fetchCryptoPrices { [weak self] nuevosPrecios in
+        
+        cryptoService.fetchCryptoPrices { [weak self] nuevosPrecios in
             guard let self = self else { return }
             
+            // Como el servicio ya devuelve en Main Queue (lo pusimos en APIManager), podemos usarlo directo,
+            // pero por seguridad mantenemos el DispatchQueue si queremos.
             DispatchQueue.main.async {
-                //nuevos precios
+                
+                // Actualizamos datos
                 self.preciosEnVivo = nuevosPrecios
                 
-                //guardar en memoria
+                // Guardamos en memoria para la próxima vez
                 self.guardarPreciosEnMemoria()
                 
+                // Refrescamos UI
                 self.actualizarPatrimonioTotal()
                 self.collectionView.reloadData()
             }
@@ -82,25 +99,23 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
     }
     
     @objc func refreshData() {
-        print("actualizando los datos")
-        APIManager.shared.fetchCryptoPrices { [weak self] nuevosPrecios in
+        print("🔄 Actualizando datos manualmente...")
+        
+        cryptoService.fetchCryptoPrices { [weak self] nuevosPrecios in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
                 self.preciosEnVivo = nuevosPrecios
-                
-                
                 self.guardarPreciosEnMemoria()
-                
                 self.actualizarPatrimonioTotal()
                 self.collectionView.reloadData()
                 self.refreshControl.endRefreshing()
-                print("datos actualizados")
+                print("✅ Datos actualizados")
             }
         }
     }
     
-    // MARK: - sistema de memoria / persistencia de datos
+    // MARK: - Sistema de Memoria / Persistencia de Datos
     
     func guardarPreciosEnMemoria() {
         // Convertimos el diccionario complejo a una lista simple para guardar
@@ -110,10 +125,9 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
             backupList.append(item)
         }
         
-        //guardamos en  (UserDefaults)
+        // Guardamos en UserDefaults
         if let encoded = try? JSONEncoder().encode(backupList) {
             UserDefaults.standard.set(encoded, forKey: "savedPrices")
-            // print("Precios guardados en memoria")
         }
     }
     
@@ -127,7 +141,7 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
                 preciosEnVivo[item.symbol] = (item.price, item.change)
             }
             
-            print("usando precios anteriores mientras cargan los nuevos")
+            print("💾 Usando precios cacheados mientras cargan los nuevos")
             actualizarPatrimonioTotal()
             collectionView.reloadData()
         }
@@ -135,33 +149,32 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
     
     // MARK: - Calculadora y UI
     
-    //calculo de dolar
-        func actualizarPatrimonioTotal() {
-            var totalSoles: Double = 0.0
+    func actualizarPatrimonioTotal() {
+        var totalSoles: Double = 0.0
+        
+        for account in accounts {
+            let saldo = account.balance
+            let moneda = account.currency ?? "PEN"
             
-            for account in accounts {
-                let saldo = account.balance
-                let moneda = account.currency ?? "PEN"
-                
-                if moneda == "PEN" {
-                    totalSoles += saldo
+            if moneda == "PEN" {
+                totalSoles += saldo
+            } else {
+                // Si es otra moneda (USD, BTC, ETH...)
+                if let datosMoneda = preciosEnVivo[moneda] {
+                    totalSoles += (saldo * datosMoneda.price)
                 } else {
-                    //si es otra moneda
-                    if let datosMoneda = preciosEnVivo[moneda] {
-                        totalSoles += (saldo * datosMoneda.price)
-                    } else {
-                        // backup
-                        if moneda == "USD" {
-                            totalSoles += (saldo * 3.75)
-                        }
+                    // Backup básico si falla internet y no hay caché
+                    if moneda == "USD" {
+                        totalSoles += (saldo * 3.75)
                     }
                 }
             }
-            
-            if let label = totalBalanceLabel {
-                label.text = String(format: "S/ %.2f", totalSoles)
-            }
         }
+        
+        if let label = totalBalanceLabel {
+            label.text = String(format: "S/ %.2f", totalSoles)
+        }
+    }
     
     // MARK: - CollectionView Methods
 
@@ -173,6 +186,7 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CardCell", for: indexPath) as! CardCellCollectionViewCell
         let account = accounts[indexPath.row]
         
+        // Pasamos datos en vivo si existen
         if let moneda = account.currency, let datos = preciosEnVivo[moneda] {
             cell.configure(with: account, livePrice: datos.price, change: datos.change)
         } else {
@@ -192,7 +206,7 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
         performSegue(withIdentifier: "goToDetail", sender: selectedAccount)
     }
     
-    // MARK: - Menu Contextual (Borrar / Renombrar)
+    // MARK: - Menú Contextual (Borrar / Renombrar)
     
     func collectionView(_ collectionView: UICollectionView, contextMenuConfigurationForItemAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
         return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { suggestedActions in
@@ -250,6 +264,7 @@ class DashboardViewController: UIViewController, UICollectionViewDataSource, UIC
             if let detailVC = segue.destination as? AccountDetailViewController {
                 if let selectedAccount = sender as? Account {
                     detailVC.account = selectedAccount
+                    // Pasar el precio en vivo al detalle para que calcule el saldo real allá también
                     if let moneda = selectedAccount.currency, let datos = preciosEnVivo[moneda] {
                         detailVC.livePrice = datos.price
                         detailVC.liveChange = datos.change

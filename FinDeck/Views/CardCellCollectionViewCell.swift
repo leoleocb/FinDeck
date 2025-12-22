@@ -20,20 +20,20 @@ class CardCellCollectionViewCell: UICollectionViewCell {
             balanceLabel.text = String(format: "%.2f", account.balance)
         }
         
-        // 2. 🔥 MAGIA DEL THEME MANAGER 🔥
-        // En una sola línea obtenemos todo el diseño
-        let style = ThemeManager.getStyle(accountName: account.name, currency: account.currency, type: account.type)
+        // 2. 🔥 MAGIA DEL ENUM 🔥
+        // Obtenemos el Tema específico (Ej: .bitcoin, .bcp, .usd)
+        let theme = ThemeManager.getTheme(accountName: account.name, currency: account.currency, type: account.type)
         
-        // Aplicar Color
-        self.backgroundColor = style.backgroundColor
-        self.redondear(radio: 16) // Usando tu extensión
+        // Aplicar Color (El enum sabe su color)
+        self.backgroundColor = theme.backgroundColor
+        self.redondear(radio: 16)
         
-        // Aplicar Icono
-        iconImageView.image = style.icon ?? nil
-        iconImageView.backgroundColor = style.icon == nil ? .systemGray4 : .clear
+        // Aplicar Icono (El enum sabe su icono)
+        iconImageView.image = theme.icon
+        iconImageView.backgroundColor = theme.icon == nil ? .systemGray4 : .clear
         
-        // Aplicar Forma (Redondo o Cuadrado)
-        if style.shouldBeRound {
+        // Aplicar Forma (El enum sabe si debe ser redondo)
+        if theme.shouldBeRound {
             iconImageView.hacerCirculo()
             iconImageView.contentMode = .scaleAspectFill
         } else {
@@ -41,7 +41,7 @@ class CardCellCollectionViewCell: UICollectionViewCell {
             iconImageView.contentMode = .scaleAspectFit
         }
         
-        // 3. Datos de Mercado (Esto es lógica de datos, no tanto de diseño, se queda aquí)
+        // 3. Datos de Mercado
         setupMarketData(account: account, livePrice: livePrice, change: change)
     }
     
